@@ -1,45 +1,40 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import MainFeature from "../components/MainFeature";
+import Loader from "../components/Loader";
+import { fetchAllCategories } from "../store/categorySlice";
+import { fetchAllTasks } from "../store/taskSlice";
 
 const Home = () => {
-  const [categories, setCategories] = useState([
-    { id: "1", name: "Personal", color: "#6366f1" },
-    { id: "2", name: "Work", color: "#ec4899" },
-    { id: "3", name: "Health", color: "#06b6d4" },
-  ]);
+  const dispatch = useDispatch();
+  const { items: categories, isLoading: categoriesLoading } = useSelector(state => state.categories);
+  const { items: tasks, isLoading: tasksLoading } = useSelector(state => state.tasks);
   
   const [activeCategory, setActiveCategory] = useState("all");
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem("tasks");
-    return savedTasks ? JSON.parse(savedTasks) : [];
-  });
 
+  // Fetch data on component mount
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    dispatch(fetchAllCategories());
+    dispatch(fetchAllTasks());
+  }, [dispatch]);
 
-  const addTask = (newTask) => {
-    setTasks([...tasks, { ...newTask, id: crypto.randomUUID() }]);
-  };
+  const isLoading = categoriesLoading || tasksLoading;
 
-  const toggleTaskCompletion = (id) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
-  };
-
-  const deleteTask = (id) => {
-    setTasks(tasks.filter((task) => task.id !== id));
-  };
-
+  // Filter tasks based on active category
   const filteredTasks = activeCategory === "all" 
     ? tasks 
     : activeCategory === "completed"
     ? tasks.filter(task => task.completed)
     : tasks.filter(task => task.categoryId === activeCategory);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-120px)]">
+        <Loader />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
@@ -129,11 +124,8 @@ const Home = () => {
           
           <div className="lg:col-span-9">
             <MainFeature 
-              addTask={addTask} 
               categories={categories} 
               tasks={filteredTasks}
-              toggleTaskCompletion={toggleTaskCompletion}
-              deleteTask={deleteTask}
               activeCategory={activeCategory}
             />
           </div>

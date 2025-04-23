@@ -1,16 +1,18 @@
 import { useState } from "react";
+import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, Circle, Trash2, Calendar, Clock, AlertCircle, Plus } from "lucide-react";
 import { format } from "date-fns";
+import { createTask, updateTask, removeTask } from "../store/taskSlice";
+import Loader from "./Loader";
 
 const MainFeature = ({ 
-  addTask, 
   categories, 
   tasks, 
-  toggleTaskCompletion, 
-  deleteTask,
   activeCategory 
 }) => {
+  const dispatch = useDispatch();
+  
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -18,11 +20,11 @@ const MainFeature = ({
     categoryId: categories[0]?.id || "",
     dueDate: "",
     completed: false,
-    createdAt: new Date().toISOString(),
   });
   
   const [formErrors, setFormErrors] = useState({});
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -49,27 +51,53 @@ const MainFeature = ({
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      addTask({
-        ...newTask,
-        createdAt: new Date().toISOString(),
-      });
-      
-      // Reset form
-      setNewTask({
-        title: "",
-        description: "",
-        priority: "medium",
-        categoryId: categories[0]?.id || "",
-        dueDate: "",
-        completed: false,
-        createdAt: new Date().toISOString(),
-      });
-      
-      setIsFormOpen(false);
+      setIsSubmitting(true);
+      try {
+        await dispatch(createTask(newTask)).unwrap();
+        
+        // Reset form
+        setNewTask({
+          title: "",
+          description: "",
+          priority: "medium",
+          categoryId: categories[0]?.id || "",
+          dueDate: "",
+          completed: false,
+        });
+        
+        setIsFormOpen(false);
+      } catch (error) {
+        console.error("Failed to create task:", error);
+        setFormErrors({ submit: "Failed to create task. Please try again." });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const toggleTaskCompletion = async (id) => {
+    try {
+      const taskToUpdate = tasks.find(task => task.id === id);
+      await dispatch(updateTask({
+        id,
+        data: { completed: !taskToUpdate.completed }
+      })).unwrap();
+    } catch (error) {
+      console.error("Failed to update task:", error);
+    }
+  };
+
+  const deleteTask = async (id) => {
+    if (confirm("Are you sure you want to delete this task?")) {
+      try {
+        await dispatch(removeTask(id)).unwrap();
+      } catch (error) {
+        console.error("Failed to delete task:", error);
+      }
     }
   };
 
@@ -129,6 +157,12 @@ const MainFeature = ({
           >
             <form onSubmit={handleSubmit} className="card-neu mb-6">
               <h3 className="text-xl font-semibold mb-4">Create New Task</h3>
+              
+              {formErrors.submit && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                  {formErrors.submit}
+                </div>
+              )}
               
               <div className="space-y-4">
                 <div>
@@ -225,11 +259,16 @@ const MainFeature = ({
                   type="button"
                   onClick={() => setIsFormOpen(false)}
                   className="btn btn-outline"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Create Task
+                <button 
+                  type="submit" 
+                  className="btn btn-primary flex items-center justify-center min-w-[100px]"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? <Loader /> : "Create Task"}
                 </button>
               </div>
             </form>
