@@ -40,11 +40,6 @@ const Auth = () => {
     
     // Show the login UI
     ApperUI.showLogin("#authentication");
-    
-    // Cleanup
-    return () => {
-      ApperUI.hide();
-    };
   }, [dispatch, navigate, isAuthenticated]);
 
   return (
